@@ -1,6 +1,7 @@
 local socket = require"socket"
 
 print("Lua Remote Debugger")
+print("Type 'help' for commands")
 
 local breakpoints = {}
 
@@ -8,7 +9,7 @@ while true do
   io.write("> ")
   local line = io.read("*line")
   command = string.sub(line, string.find(line, "^[a-z]+"))
-  if command == "run" then
+  if command == "wait" then
     break
   elseif command == "exit" then
     os.exit()
@@ -27,7 +28,13 @@ while true do
         io.write(k .. " ")
       end
       io.write("\n")
-    end
+    end 
+  elseif command == "help" do
+    print("setb <file> <line>    -- sets a breakpoint")
+    print("delb <file> <line>    -- removes a breakpoint")
+    print("wait                  -- waits for program to run")
+    print("lisb                  -- lists breakpoints")
+    print("exit                  -- exits debugger")
   else
     print("Invalid command")
   end
@@ -35,6 +42,8 @@ end
 
 local server = socket.bind("*", 8171)
 local client = server:accept()
+
+print("Now run the program you wish to debug")
 
 for file, breaks in pairs(breakpoints) do
   for line, _ in pairs(breaks) do
@@ -79,6 +88,14 @@ while true do
     breakpoints[filename][line] = nil
     client:send("DELB " .. filename .. " " .. line .. "\n")
     client:receive()
+  elseif command == "eval" then
+    local _, _, exp = string.find(line, "^[A-Z]+%s+(.+)$")
+    client:send("EVAL " .. exp .. "\n")
+    local line = client:receive()
+    local _, _, len = string.find("^200 OK (%d+)$")
+    len = tonumber(len)
+    local res = client:receive(len)
+    print(res)
   elseif command == "listb" then
     for k, v in pairs(breakpoints) do
       io.write(k .. ": ")
@@ -87,6 +104,13 @@ while true do
       end
       io.write("\n")
     end
+  elseif command == "help" do
+    print("setb <file> <line>    -- sets a breakpoint")
+    print("delb <file> <line>    -- removes a breakpoint")
+    print("run                   -- run until next breakpoint")
+    print("listb                 -- lists breakpoints")
+    print("eval <exp>            -- evaluates expression on the current context")
+    print("exit                  -- exits debugger")
   else
     print("Invalid command")
   end
