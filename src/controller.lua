@@ -29,11 +29,11 @@ while true do
       end
       io.write("\n")
     end 
-  elseif command == "help" do
+  elseif command == "help" then
     print("setb <file> <line>    -- sets a breakpoint")
     print("delb <file> <line>    -- removes a breakpoint")
     print("wait                  -- waits for program to run")
-    print("lisb                  -- lists breakpoints")
+    print("listb                  -- lists breakpoints")
     print("exit                  -- exits debugger")
   else
     print("Invalid command")
@@ -89,10 +89,10 @@ while true do
     client:send("DELB " .. filename .. " " .. line .. "\n")
     client:receive()
   elseif command == "eval" then
-    local _, _, exp = string.find(line, "^[A-Z]+%s+(.+)$")
+    local _, _, exp = string.find(line, "^[a-z]+%s+(.+)$")
     client:send("EVAL " .. exp .. "\n")
     local line = client:receive()
-    local _, _, len = string.find("^200 OK (%d+)$")
+    local _, _, len = string.find(line, "^200 OK (%d+)$")
     len = tonumber(len)
     local res = client:receive(len)
     print(res)
@@ -104,7 +104,7 @@ while true do
       end
       io.write("\n")
     end
-  elseif command == "help" do
+  elseif command == "help" then
     print("setb <file> <line>    -- sets a breakpoint")
     print("delb <file> <line>    -- removes a breakpoint")
     print("run                   -- run until next breakpoint")

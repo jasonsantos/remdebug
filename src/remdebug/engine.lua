@@ -8,7 +8,7 @@ local events = { BREAK = 1 }
 local breakpoints = {}
 
 local controller_host = "localhost"
-local controller_port = 8771
+local controller_port = 8171
 
 local function set_breakpoint(file, line)
   if not breakpoints[file] then
@@ -112,8 +112,18 @@ end
 
 coro_debugger = coroutine.create(debugger_loop)
 
+function config(tab)
+  if tab.host then
+    controller_host = tab.host
+  end
+  if tab.port then
+    controller_port = tab.port
+  end
+end
+
 function start()
   debug.sethook(line_hook, "l")
+  pcall(require, "remdebug.config")
   local server = socket.connect(controller_host, controller_port)
   return coroutine.resume(coro_debugger, server)
 end
