@@ -40,10 +40,10 @@ while true do
   end
 end
 
+print("Now run the program you wish to debug")
+
 local server = socket.bind("*", 8171)
 local client = server:accept()
-
-print("Now run the program you wish to debug")
 
 for file, breaks in pairs(breakpoints) do
   for line, _ in pairs(breaks) do
