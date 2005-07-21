@@ -1,6 +1,26 @@
 Remdebug 0.1 Alpha
 ------------------
 
+Overview
+--------
+
+Remdebug is a remote debugger for Lua 5.0/5.1. It allows to control
+the execution of another Lua program remotely, setting breakpoints
+and inspecting the current state of the program.
+
+Remdebug is free software and uses the same license as Lua 5.0.
+
+Copyright (c) 2005 Kepler Project
+
+Status
+------
+
+The current version is an early alpha of Remdebug. Much of the planned
+functionality (step over, step into, watch expressions) is missing,
+and the only controller is a very simple command-line one. Controllers
+integrated into environments such as Eclipse are planned for future
+versions.
+
 Installation
 ------------
 
@@ -107,3 +127,14 @@ Breakpoint reached at file test.lua line 14
 > run
 Program finished
 
+Credits
+-------
+
+This alpha version was designed by Fabio Mascarenhas and André Carregal,
+and was developed by Fabio Mascarenhas.
+
+Contact
+-------
+
+For more information please contact us at info@keplerproject.org.
+Comments are welcome!
