@@ -15,12 +15,19 @@ while true do
     os.exit()
   elseif command == "setb" then
     local _, _, _, filename, line = string.find(line, "^([a-z]+)%s+([%w%p]+)%s+(%d+)$")
-    if not breakpoints[filename] then breakpoints[filename] = {} end
-    local breaks = breakpoints[filename]
-    breakpoints[filename][line] = true
+    if filename and line then
+      if not breakpoints[filename] then breakpoints[filename] = {} end
+      breakpoints[filename][line] = true
+    else
+      print("Invalid command")
+    end
   elseif command == "delb" then
     local _, _, _, filename, line = string.find(line, "^([a-z]+)%s+([%w%p]w+)%s+(%d+)$")
-    breakpoints[filename][line] = nil
+    if filename and line then
+      breakpoints[filename][line] = nil
+    else
+      print("Invalid command")
+    end
   elseif command == "listb" then
     for k, v in pairs(breakpoints) do
       io.write(k .. ": ")
@@ -78,24 +85,35 @@ while true do
     os.exit()
   elseif command == "setb" then
     local _, _, _, filename, line = string.find(line, "^([a-z]+)%s+([%w%p]+)%s+(%d+)$")
-    if not breakpoints[filename] then breakpoints[filename] = {} end
-    local breaks = breakpoints[filename]
-    breakpoints[filename][line] = true
-    client:send("SETB " .. filename .. " " .. line .. "\n")
-    client:receive()
+    if filename and line then
+      if not breakpoints[filename] then breakpoints[filename] = {} end
+      breakpoints[filename][line] = true
+      client:send("SETB " .. filename .. " " .. line .. "\n")
+      client:receive()
+    else
+      print("Invalid command")
+    end
   elseif command == "delb" then
     local _, _, _, filename, line = string.find(line, "^([a-z]+)%s+([%w%p]+)%s+(%d+)$")
-    breakpoints[filename][line] = nil
-    client:send("DELB " .. filename .. " " .. line .. "\n")
-    client:receive()
+    if filename and line then
+      breakpoints[filename][line] = nil
+      client:send("DELB " .. filename .. " " .. line .. "\n")
+      client:receive()
+    else
+      print("Invalid command")
+    end
   elseif command == "eval" then
     local _, _, exp = string.find(line, "^[a-z]+%s+(.+)$")
-    client:send("EVAL " .. exp .. "\n")
-    local line = client:receive()
-    local _, _, len = string.find(line, "^200 OK (%d+)$")
-    len = tonumber(len)
-    local res = client:receive(len)
-    print(res)
+    if exp then 
+      client:send("EVAL " .. exp .. "\n")
+      local line = client:receive()
+      local _, _, len = string.find(line, "^200 OK (%d+)$")
+      len = tonumber(len)
+      local res = client:receive(len)
+      print(res)
+    else
+      print("Invalid command")
+    end
   elseif command == "listb" then
     for k, v in pairs(breakpoints) do
       io.write(k .. ": ")
