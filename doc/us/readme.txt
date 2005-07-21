@@ -15,7 +15,7 @@ Running
 
 You should run the controller first. Just do
 
-  lua controller.lua
+  lua50 controller.lua
 
 And you will be presented with a prompt. Type 'help' to see available
 commands. Set at least one breakpoint, then type 'wait'. The controller
@@ -29,7 +29,7 @@ The application you want to debug should have the following lines added:
 With the controller blocked, run the application. A sample one, test.lua, is
 provided. Just do
 
-  lua test.lua
+  lua50 test.lua
 
 The application should block on the first breakpoint you set, and the
 controller will wait for further commands. Type help again to see
@@ -77,7 +77,7 @@ no 'wait' command anymore, and the following commands are added:
 Example of Execution
 --------------------
 
-% lua controller.lua
+% lua50 controller.lua
 Lua Remote Debugger
 Type 'help' for commands
 > setb test.lua 10
