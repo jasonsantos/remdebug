@@ -1,3 +1,8 @@
+--
+-- RemDebug 0.1 Alpha
+-- Copyright Kepler Project 2005 (http://www.keplerproject.org/remdebug)
+--
+
 local socket = require"socket"
 
 print("Lua Remote Debugger")
