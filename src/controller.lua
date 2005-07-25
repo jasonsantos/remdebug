@@ -1,5 +1,5 @@
 --
--- RemDebug 0.1 Alpha
+-- RemDebug 1.0 Alpha
 -- Copyright Kepler Project 2005 (http://www.keplerproject.org/remdebug)
 --
 

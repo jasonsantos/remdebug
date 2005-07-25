@@ -48,7 +48,7 @@
 
 <h2><a name="over"></a>Overview</h2>
 
-<p>Remdebug is a remote debugger for <a href="http://www.lua.org">Lua 5.0/5.1</a>. It allows to control
+<p>Remdebug is a remote debugger for <a href="http://www.lua.org">Lua 5.0/5.1</a>. It lets you control
 the execution of another Lua program remotely, setting breakpoints
 and inspecting the current state of the program.</p>
 
@@ -56,8 +56,9 @@ and inspecting the current state of the program.</p>
 
 <h2><a name="status"></a>Status</h2>
 
-<p>The current version is an early alpha of Remdebug. Much of the planned
-functionality (step over, step into, watch expressions) is missing,
+<p>The current version is Remdebug 1.0 Alpha, released on July 24th, 2005.
+Much of the planned functionality (step over, step into, watch expressions) for version 1.0
+is missing,
 and the only controller is a very simple command-line one. Controllers
 integrated into environments such as Eclipse are planned for future
 versions.</p>
@@ -70,12 +71,20 @@ for more details).</p>
 <h2><a name="download"></a>Download</h2>
 
 <p>RemDebug can be downloaded from the 
-<a href="http://luaforge.net/projects/remdebug/files/">LuaForge page</a>.
+<a href="http://luaforge.net/projects/remdebug/files/">LuaForge page</a>.</p>
 
 <h2><a name="installation"></a>Installation</h2>
 
-<p>Create a remdebug folder in your package.path and copy engine.lua to
-this folder.</p>
+<p>RemDebug uses <a href="http://luaforge.net/projects/luasocket/files">LuaSocket 2.0 Beta 3</a>, so first check if this library
+is installed in your system. Download and install LuaSocket if it is not installed. 
+RemDebug also uses the new package proposal for Lua 5.1, so if you use Lua 5.0 then 
+download and install
+<a href="http://luaforge.net/projects/compat/files/">Compat-5.1</a>.</p>
+
+<p>To install RemDebug, create a remdebug folder in your package.path and
+ copy engine.lua to
+this folder. The controller.lua file is a standalone application, so it can
+ be anywhere in your system.</p>
 
 <p>RemDebug uses the new package proposal, so if you are using Lua 5.0
 you should load compat-5.1.lua through your LUA_INIT environment variable.</p>
@@ -135,7 +144,7 @@ no <code>wait</code> command anymore, and the following commands are added:</p>
 <dl>
 <dt><code>eval &lt;exp&gt;</code></dt>
 <dd>Evaluates <code>&lt;exp&gt;</code>, which should be a Lua expression, in the context where
-  where the program stopped (including any local variables and upvalues).</p></dd>
+  where the program stopped (including any local variables and upvalues).</dd>
 <dt><code>run</code></dt>
 <dd>Run the program, blocking the controller again, until the next breakpoint.</dd>
 </dl>
@@ -176,7 +185,7 @@ Program finished
 
 <h2><a name="credits"></a>Credits</h2>
 
-<p>This alpha version was designed by Fabio Mascarenhas and Andr&eacute; Carregal,
+<p>RemDebug 1.0 Alpha was designed by Fabio Mascarenhas and Andr&eacute; Carregal,
 and was developed by Fabio Mascarenhas.</p>
 
 <p>RemDebug development is sponsored by
@@ -196,7 +205,7 @@ Comments are welcome!</p>
 <div id="about">
 	<p><a href="http://validator.w3.org/check?uri=referer"><img src="http://www.w3.org/Icons/valid-xhtml10" alt="Valid XHTML 1.0!" height="31" width="88" /></a></p>
 	<p><small>
-	$Id: index.html,v 1.1 2005-07-21 23:16:01 mascarenhas Exp $
+	$Id: index.html,v 1.2 2005-07-25 15:08:10 mascarenhas Exp $
 	</small></p>
 </div> <!-- id="about" -->
 </div> <!-- id="container" -->

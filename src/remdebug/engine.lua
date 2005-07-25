@@ -1,9 +1,13 @@
 --
--- RemDebug 0.1 Alpha
+-- RemDebug 1.0 Alpha
 -- Copyright Kepler Project 2005 (http://www.keplerproject.org/remdebug)
 --
 
 module("remdebug.engine")
+
+_COPYRIGHT = "2005 - Kepler Project"
+_DESCRIPTION = "Remote Debugger for the Lua programming language"
+_VERSION = "1.0 Alpha"
 
 local socket = require"socket"
 local debug = debug
@@ -117,6 +121,10 @@ end
 
 coro_debugger = coroutine.create(debugger_loop)
 
+--
+-- remdebug.engine.config(tab)
+-- Configures the engine
+--
 function config(tab)
   if tab.host then
     controller_host = tab.host
@@ -126,10 +134,16 @@ function config(tab)
   end
 end
 
+--
+-- remdebug.engine.start()
+-- Tries to start the debug session by connecting with a controller
+--
 function start()
-  debug.sethook(line_hook, "l")
   pcall(require, "remdebug.config")
   local server = socket.connect(controller_host, controller_port)
-  return coroutine.resume(coro_debugger, server)
+  if server then
+    debug.sethook(line_hook, "l")
+    return coroutine.resume(coro_debugger, server)
+  end
 end
 

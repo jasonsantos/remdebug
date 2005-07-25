@@ -1,4 +1,4 @@
-Remdebug 0.1 Alpha
+Remdebug 1.0 Alpha
 ------------------
 
 Overview
