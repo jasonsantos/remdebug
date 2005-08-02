@@ -9,6 +9,7 @@ print("Lua Remote Debugger")
 print("Type 'help' for commands")
 
 local breakpoints = {}
+local watches = {}
 
 while true do
   io.write("> ")
@@ -26,10 +27,27 @@ while true do
     else
       print("Invalid command")
     end
+  elseif command == "setw" then
+    local _, _, exp = string.find(line, "^[a-z]+%s+(.+)$")
+    if exp then
+      local newidx = table.getn(watches) + 1
+      watches[newidx] = exp
+      table.setn(watches, newidx)
+      print("Inserted watch exp no. " .. newidx)
+    else
+      print("Invalid command")
+    end
   elseif command == "delb" then
     local _, _, _, filename, line = string.find(line, "^([a-z]+)%s+([%w%p]w+)%s+(%d+)$")
     if filename and line then
       breakpoints[filename][line] = nil
+    else
+      print("Invalid command")
+    end
+  elseif command == "delw" then
+    local _, _, index = string.find(line, "^[a-z]+%s+(%d+)$")
+    if index then
+      watches[index] = nil
     else
       print("Invalid command")
     end
@@ -40,12 +58,19 @@ while true do
         io.write(k .. " ")
       end
       io.write("\n")
-    end 
+    end
+  elseif command == "listw" then
+    for i, v in ipairs(watches) do
+      print("Watch exp. " .. i .. ": " .. v)
+    end    
   elseif command == "help" then
     print("setb <file> <line>    -- sets a breakpoint")
     print("delb <file> <line>    -- removes a breakpoint")
+    print("setw <exp>            -- adds a new watch expression")
+    print("delw <index>          -- removes the watch expression at index")
     print("wait                  -- waits for program to run")
-    print("listb                  -- lists breakpoints")
+    print("listb                 -- lists breakpoints")
+    print("listw                 -- lists watch expressions")
     print("exit                  -- exits debugger")
   else
     print("Invalid command")
@@ -60,8 +85,13 @@ local client = server:accept()
 for file, breaks in pairs(breakpoints) do
   for line, _ in pairs(breaks) do
     client:send("SETB " .. file .. " " .. line .. "\n")
-    local line, status = client:receive()
+    client:receive()
   end
+end
+
+for index, exp in ipairs(watches) do
+  client:send("SETW " .. exp .. "\n")
+  client:receive()
 end
 
 client:send("RUN\n")
@@ -75,8 +105,8 @@ while true do
   io.write("> ")
   local line = io.read("*line")
   command = string.sub(line, string.find(line, "^[a-z]+"))
-  if command == "run" then
-    client:send("RUN\n")
+  if command == "run" or command == "step" or command == "over" then
+    client:send(string.upper(command) .. "\n")
     client:receive()
     local breakpoint = client:receive()
     if not breakpoint then
@@ -98,11 +128,32 @@ while true do
     else
       print("Invalid command")
     end
+  elseif command == "setw" then
+    local _, _, exp = string.find(line, "^[a-z]+%s+(.+)$")
+    if exp then
+      local newidx = table.getn(watches) + 1
+      watches[newidx] = exp
+      table.setn(watches, newidx)
+      print("Inserted watch exp no. " .. newidx)
+      client:send("SETW " .. exp .. "\n")
+      client:receive()
+    else
+      print("Invalid command")
+    end
   elseif command == "delb" then
     local _, _, _, filename, line = string.find(line, "^([a-z]+)%s+([%w%p]+)%s+(%d+)$")
     if filename and line then
       breakpoints[filename][line] = nil
       client:send("DELB " .. filename .. " " .. line .. "\n")
+      client:receive()
+    else
+      print("Invalid command")
+    end
+  elseif command == "delw" then
+    local _, _, index = string.find(line, "^[a-z]+%s+(%d+)$")
+    if index then
+      watches[index] = nil
+      client:send("DELW " .. index .. "\n")
       client:receive()
     else
       print("Invalid command")
@@ -127,11 +178,20 @@ while true do
       end
       io.write("\n")
     end
+  elseif command == "listw" then
+    for i, v in ipairs(watches) do
+      print("Watch exp. " .. i .. ": " .. v)
+    end    
   elseif command == "help" then
     print("setb <file> <line>    -- sets a breakpoint")
     print("delb <file> <line>    -- removes a breakpoint")
+    print("setw <exp>            -- adds a new watch expression")
+    print("delw <index>          -- removes the watch expression at index")
     print("run                   -- run until next breakpoint")
+    print("step                  -- run until next line, stepping into function calls")
+    print("over                  -- run until next line, stepping over function calls")
     print("listb                 -- lists breakpoints")
+    print("listw                 -- lists watch expressions")
     print("eval <exp>            -- evaluates expression on the current context")
     print("exit                  -- exits debugger")
   else

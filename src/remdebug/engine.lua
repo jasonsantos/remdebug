@@ -15,6 +15,11 @@ local debug = debug
 local coro_debugger
 local events = { BREAK = 1 }
 local breakpoints = {}
+local watches = {}
+local step_into = false
+local step_over = false
+local step_level = 0
+local stack_level = 0
 
 local controller_host = "localhost"
 local controller_port = 8171
@@ -58,13 +63,28 @@ local function capture_vars()
   return vars
 end
 
-local function line_hook(event, line)
-  local file = debug.getinfo(2, "S").source
-  if string.find(file, "@") == 1 then
-    file = string.sub(file, 2)
-  end
-  if has_breakpoint(file, line) then
-    coroutine.resume(coro_debugger, events.BREAK, file, line, capture_vars())
+local function debug_hook(event, line)
+  if event == "call" then
+    stack_level = stack_level + 1
+  elseif event == "return" then
+    stack_level = stack_level - 1
+  else
+    local file = debug.getinfo(2, "S").source
+    local vars = capture_vars()
+    if string.find(file, "@") == 1 then
+      file = string.sub(file, 2)
+    end
+    table.foreachi(watches, function (index, value)
+      setfenv(value, vars)
+      if value() then
+        coroutine.resume(coro_debugger, events.BREAK, file, line, vars)
+      end
+    end)
+    if step_into or (step_over and stack_level <= step_level) or has_breakpoint(file, line) then
+      step_into = false
+      step_over = false
+      coroutine.resume(coro_debugger, events.BREAK, file, line, vars)
+    end
   end
 end
 
@@ -106,8 +126,44 @@ local function debugger_loop(server)
       else
         server:send("400 Bad Request\n")
       end
+    elseif command == "SETW" then
+      local _, _, exp = string.find(line, "^[A-Z]+%s+(.+)$")
+      if exp then 
+        local func = loadstring("return(" .. exp .. ")")
+        local newidx = table.getn(watches) + 1
+        watches[newidx] = func
+        table.setn(watches, newidx)
+        server:send("200 OK" .. newidx .. "\n") 
+      else
+        server:send("400 Bad Request\n")
+      end
+    elseif command == "DELW" then
+      local _, _, index = string.find(line, "^[A-Z]+%s+(%d+)$")
+      if index then
+        watches[index] = nil
+        server:send("200 OK") 
+      else
+        server:send("400 Bad Request\n")
+      end
     elseif command == "RUN" then
       server:send("200 OK\n")
+      local ev, file, line, vars = coroutine.yield()
+      eval_env = vars
+      if ev == events.BREAK then
+        server:send("202 Paused " .. file .. " " .. line .. "\n")
+      end
+    elseif command == "STEP" then
+      server:send("200 OK\n")
+      step_into = true
+      local ev, file, line, vars = coroutine.yield()
+      eval_env = vars
+      if ev == events.BREAK then
+        server:send("202 Paused " .. file .. " " .. line .. "\n")
+      end
+    elseif command == "OVER" then
+      server:send("200 OK\n")
+      step_over = true
+      step_level = stack_level
       local ev, file, line, vars = coroutine.yield()
       eval_env = vars
       if ev == events.BREAK then
@@ -142,7 +198,7 @@ function start()
   pcall(require, "remdebug.config")
   local server = socket.connect(controller_host, controller_port)
   if server then
-    debug.sethook(line_hook, "l")
+    debug.sethook(debug_hook, "lcr")
     return coroutine.resume(coro_debugger, server)
   end
 end
