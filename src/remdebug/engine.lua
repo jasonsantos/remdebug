@@ -1,5 +1,5 @@
 --
--- RemDebug 1.0 Alpha
+-- RemDebug 1.0 Alpha 2
 -- Copyright Kepler Project 2005 (http://www.keplerproject.org/remdebug)
 --
 
@@ -10,6 +10,7 @@ _DESCRIPTION = "Remote Debugger for the Lua programming language"
 _VERSION = "1.0 Alpha"
 
 local socket = require"socket"
+local lfs = require"lfs"
 local debug = debug
 
 local coro_debugger
@@ -41,11 +42,34 @@ local function has_breakpoint(file, line)
   return breakpoints[file] and breakpoints[file][line]
 end
 
+local function restore_vars(vars)
+  if type(vars) ~= 'table' then return end
+  local func = debug.getinfo(3, "f").func
+  local i = 1
+  local written_vars = {}
+  while true do
+    local name = debug.getlocal(3, i)
+    if not name then break end
+    debug.setlocal(3, i, vars[name])
+    written_vars[name] = true
+    i = i + 1
+  end
+  i = 1
+  while true do
+    local name = debug.getupvalue(func, i)
+    if not name then break end
+    if not written_vars[name] then
+      debug.setupvalue(func, i, vars[name])
+      written_vars[name] = true
+    end
+    i = i + 1
+  end
+end
+
 local function capture_vars()
   local vars = {}
   local func = debug.getinfo(3, "f").func
   local i = 1
-  i = 1
   while true do
     local name, value = debug.getupvalue(func, i)
     if not name then break end
@@ -59,8 +83,30 @@ local function capture_vars()
     vars[name] = value
     i = i + 1
   end
-  setmetatable(vars, { __index = getfenv(func) })
+  setmetatable(vars, { __index = getfenv(func), __newindex = getfenv(func) })
   return vars
+end
+
+local function break_dir(path) 
+  local paths = {}
+  path = string.gsub(path, "\\", "/")
+  for w in string.gfind(path, "[^\/]+") do
+    table.insert(paths, w)
+  end
+  return paths
+end
+
+local function merge_paths(path1, path2)
+  local paths1 = break_dir(path1)
+  local paths2 = break_dir(path2)
+  for i, path in ipairs(paths2) do
+    if path == ".." then
+      table.remove(paths1, table.getn(paths1))
+    elseif path ~= "." then
+      table.insert(paths1, path)
+    end
+  end
+  return table.concat(paths1, "/")
 end
 
 local function debug_hook(event, line)
@@ -70,10 +116,11 @@ local function debug_hook(event, line)
     stack_level = stack_level - 1
   else
     local file = debug.getinfo(2, "S").source
-    local vars = capture_vars()
     if string.find(file, "@") == 1 then
       file = string.sub(file, 2)
     end
+    file = merge_paths(lfs.currentdir(), file)
+    local vars = capture_vars()
     table.foreachi(watches, function (index, value)
       setfenv(value, vars)
       if value() then
@@ -84,6 +131,7 @@ local function debug_hook(event, line)
       step_into = false
       step_over = false
       coroutine.resume(coro_debugger, events.BREAK, file, line, vars)
+      restore_vars(vars)
     end
   end
 end
@@ -91,6 +139,7 @@ end
 local function debugger_loop(server)
   local command
   local eval_env = {}
+  
   while true do
     local line, status = server:receive()
     command = string.sub(line, string.find(line, "^[A-Z]+"))
@@ -110,18 +159,22 @@ local function debugger_loop(server)
       else
         server:send("400 Bad Request\n")
       end
-    elseif command == "EVAL" then
-      local _, _, exp = string.find(line, "^[A-Z]+%s+(.+)$")
-      if exp then 
-        local func = loadstring("return(" .. exp .. ")")
-        setfenv(func, eval_env)
-        local status, res = pcall(func)
+    elseif command == "EXEC" then
+      local _, _, chunk = string.find(line, "^[A-Z]+%s+(.+)$")
+      if chunk then 
+        local func = loadstring(chunk)
+        local status, res
+        if func then
+          setfenv(func, eval_env)
+          status, res = xpcall(func, debug.traceback)
+        end
+        res = tostring(res)
         if status then
-          res = tostring(res)
           server:send("200 OK " .. string.len(res) .. "\n") 
           server:send(res)
         else
-          server:send("400 Bad Request\n")
+          server:send("401 Error in Expression " .. string.len(res) .. "\n")
+          server:send(res)
         end
       else
         server:send("400 Bad Request\n")
@@ -151,6 +204,9 @@ local function debugger_loop(server)
       eval_env = vars
       if ev == events.BREAK then
         server:send("202 Paused " .. file .. " " .. line .. "\n")
+      else
+        server:send("401 Error in Execution " .. string.len(file) .. "\n")
+        server:send(file)
       end
     elseif command == "STEP" then
       server:send("200 OK\n")
@@ -159,6 +215,9 @@ local function debugger_loop(server)
       eval_env = vars
       if ev == events.BREAK then
         server:send("202 Paused " .. file .. " " .. line .. "\n")
+      else
+        server:send("401 Error in Execution " .. string.len(file) .. "\n")
+        server:send(file)
       end
     elseif command == "OVER" then
       server:send("200 OK\n")
@@ -168,6 +227,9 @@ local function debugger_loop(server)
       eval_env = vars
       if ev == events.BREAK then
         server:send("202 Paused " .. file .. " " .. line .. "\n")
+      else
+        server:send("401 Error in Execution " .. string.len(file) .. "\n")
+        server:send(file)
       end
     else
       server:send("400 Bad Request\n")
@@ -198,6 +260,13 @@ function start()
   pcall(require, "remdebug.config")
   local server = socket.connect(controller_host, controller_port)
   if server then
+    _TRACEBACK = function (message) 
+      local err = debug.traceback(message)
+      server:send("401 Error in Execution " .. string.len(err) .. "\n")
+      server:send(err)
+      server:close()
+      return err
+    end
     debug.sethook(debug_hook, "lcr")
     return coroutine.resume(coro_debugger, server)
   end

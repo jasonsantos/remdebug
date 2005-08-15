@@ -1,110 +1,41 @@
 --
--- RemDebug 1.0 Alpha
+-- RemDebug 1.0 Alpha 2
 -- Copyright Kepler Project 2005 (http://www.keplerproject.org/remdebug)
 --
 
 local socket = require"socket"
 
 print("Lua Remote Debugger")
-print("Type 'help' for commands")
-
-local breakpoints = {}
-local watches = {}
-
-while true do
-  io.write("> ")
-  local line = io.read("*line")
-  command = string.sub(line, string.find(line, "^[a-z]+"))
-  if command == "wait" then
-    break
-  elseif command == "exit" then
-    os.exit()
-  elseif command == "setb" then
-    local _, _, _, filename, line = string.find(line, "^([a-z]+)%s+([%w%p]+)%s+(%d+)$")
-    if filename and line then
-      if not breakpoints[filename] then breakpoints[filename] = {} end
-      breakpoints[filename][line] = true
-    else
-      print("Invalid command")
-    end
-  elseif command == "setw" then
-    local _, _, exp = string.find(line, "^[a-z]+%s+(.+)$")
-    if exp then
-      local newidx = table.getn(watches) + 1
-      watches[newidx] = exp
-      table.setn(watches, newidx)
-      print("Inserted watch exp no. " .. newidx)
-    else
-      print("Invalid command")
-    end
-  elseif command == "delb" then
-    local _, _, _, filename, line = string.find(line, "^([a-z]+)%s+([%w%p]w+)%s+(%d+)$")
-    if filename and line then
-      breakpoints[filename][line] = nil
-    else
-      print("Invalid command")
-    end
-  elseif command == "delw" then
-    local _, _, index = string.find(line, "^[a-z]+%s+(%d+)$")
-    if index then
-      watches[index] = nil
-    else
-      print("Invalid command")
-    end
-  elseif command == "listb" then
-    for k, v in pairs(breakpoints) do
-      io.write(k .. ": ")
-      for k, v in pairs(v) do
-        io.write(k .. " ")
-      end
-      io.write("\n")
-    end
-  elseif command == "listw" then
-    for i, v in ipairs(watches) do
-      print("Watch exp. " .. i .. ": " .. v)
-    end    
-  elseif command == "help" then
-    print("setb <file> <line>    -- sets a breakpoint")
-    print("delb <file> <line>    -- removes a breakpoint")
-    print("setw <exp>            -- adds a new watch expression")
-    print("delw <index>          -- removes the watch expression at index")
-    print("wait                  -- waits for program to run")
-    print("listb                 -- lists breakpoints")
-    print("listw                 -- lists watch expressions")
-    print("exit                  -- exits debugger")
-  else
-    print("Invalid command")
-  end
-end
-
-print("Now run the program you wish to debug")
+print("Run the program you wish to debug")
 
 local server = socket.bind("*", 8171)
 local client = server:accept()
 
-for file, breaks in pairs(breakpoints) do
-  for line, _ in pairs(breaks) do
-    client:send("SETB " .. file .. " " .. line .. "\n")
-    client:receive()
-  end
-end
+local breakpoints = {}
+local watches = {}
 
-for index, exp in ipairs(watches) do
-  client:send("SETW " .. exp .. "\n")
-  client:receive()
-end
-
-client:send("RUN\n")
+client:send("STEP\n")
 client:receive()
 
 local breakpoint = client:receive()
 local _, _, file, line = string.find(breakpoint, "^202 Paused%s+([%w%p]+)%s+(%d+)$")
-print("Breakpoint reached at file " .. file .. " line " .. line)
+if file and line then
+  print("Paused at file " .. file .. " line " .. line)
+  print("Type 'help' for commands")
+else
+  local _, _, size = string.find(breakpoint, "^401 Error in Execution (%d+)$")
+  if size then
+    print("Error in remote application: ")
+    print(client:receive(size))
+  end
+end
+
+local basedir = ""
 
 while true do
   io.write("> ")
   local line = io.read("*line")
-  command = string.sub(line, string.find(line, "^[a-z]+"))
+  local _, _, command = string.find(line, "^([a-z]+)")
   if command == "run" or command == "step" or command == "over" then
     client:send(string.upper(command) .. "\n")
     client:receive()
@@ -114,7 +45,18 @@ while true do
       os.exit()
     end
     local _, _, file, line = string.find(breakpoint, "^202 Paused%s+([%w%p]+)%s+(%d+)$")
-    print("Breakpoint reached at file " .. file .. " line " .. line)
+    if file and line then
+      print("Paused reached at file " .. file .. " line " .. line)
+    else
+      local _, _, size = string.find(breakpoint, "^401 Error in Execution (%d+)$")
+      if size then
+        print("Error in remote application: ")
+        print(client:receive(tonumber(size)))
+        os.exit()
+      end
+      print("Unknown error")
+      os.exit()
+    end
   elseif command == "exit" then
     client:close()
     os.exit()
@@ -122,51 +64,93 @@ while true do
     local _, _, _, filename, line = string.find(line, "^([a-z]+)%s+([%w%p]+)%s+(%d+)$")
     if filename and line then
       if not breakpoints[filename] then breakpoints[filename] = {} end
-      breakpoints[filename][line] = true
-      client:send("SETB " .. filename .. " " .. line .. "\n")
-      client:receive()
+      client:send("SETB " .. basedir .. filename .. " " .. line .. "\n")
+      if client:receive() == "200 OK" then 
+        breakpoints[filename][line] = true
+      else
+        print("Error: breakpoint not inserted")
+      end
     else
       print("Invalid command")
     end
   elseif command == "setw" then
     local _, _, exp = string.find(line, "^[a-z]+%s+(.+)$")
     if exp then
-      local newidx = table.getn(watches) + 1
-      watches[newidx] = exp
-      table.setn(watches, newidx)
-      print("Inserted watch exp no. " .. newidx)
       client:send("SETW " .. exp .. "\n")
-      client:receive()
+      local answer = client:receive()
+      local _, _, watch_idx = string.find(answer, "^200 OK (%d+)$")
+      if watch_idx then
+        watches[watch_idx] = exp
+        print("Inserted watch exp no. " .. watch_idx)
+      else
+        print("Error: Watch expression not inserted")
+      end
     else
       print("Invalid command")
     end
   elseif command == "delb" then
     local _, _, _, filename, line = string.find(line, "^([a-z]+)%s+([%w%p]+)%s+(%d+)$")
-    if filename and line then
-      breakpoints[filename][line] = nil
-      client:send("DELB " .. filename .. " " .. line .. "\n")
-      client:receive()
+    if filename and line and breakpoints[filename] then
+      client:send("DELB " .. basedir .. filename .. " " .. line .. "\n")
+      if client:receive() == "200 OK" then 
+        breakpoints[filename][line] = nil
+      else
+        print("Error: breakpoint not removed")
+      end
     else
       print("Invalid command")
     end
   elseif command == "delw" then
     local _, _, index = string.find(line, "^[a-z]+%s+(%d+)$")
     if index then
-      watches[index] = nil
       client:send("DELW " .. index .. "\n")
-      client:receive()
+      if client:receive() == "200 OK" then 
+      watches[index] = nil
+      else
+        print("Error: watch expression not removed")
+      end
     else
       print("Invalid command")
     end
   elseif command == "eval" then
     local _, _, exp = string.find(line, "^[a-z]+%s+(.+)$")
     if exp then 
-      client:send("EVAL " .. exp .. "\n")
+      client:send("EXEC return (" .. exp .. ")\n")
       local line = client:receive()
-      local _, _, len = string.find(line, "^200 OK (%d+)$")
-      len = tonumber(len)
-      local res = client:receive(len)
-      print(res)
+      local _, _, status, len = string.find(line, "^(%d+)[a-zA-Z ]+(%d+)$")
+      if status == "200" then
+        len = tonumber(len)
+        local res = client:receive(len)
+        print(res)
+      elseif status == "401" then
+        len = tonumber(len)
+        local res = client:receive(len)
+        print("Error in expression:")
+        print(res)
+      else
+        print("Unknown error")
+      end
+    else
+      print("Invalid command")
+    end
+  elseif command == "exec" then
+    local _, _, exp = string.find(line, "^[a-z]+%s+(.+)$")
+    if exp then 
+      client:send("EXEC " .. exp .. "\n")
+      local line = client:receive()
+      local _, _, status, len = string.find(line, "^(%d+)[%s%w]+(%d+)$")
+      if status == "200" then
+        len = tonumber(len)
+        local res = client:receive(len)
+        print(res)
+      elseif status == "401" then
+        len = tonumber(len)
+        local res = client:receive(len)
+        print("Error in expression:")
+        print(res)
+      else
+        print("Unknown error")
+      end
     else
       print("Invalid command")
     end
@@ -179,9 +163,18 @@ while true do
       io.write("\n")
     end
   elseif command == "listw" then
-    for i, v in ipairs(watches) do
+    for i, v in pairs(watches) do
       print("Watch exp. " .. i .. ": " .. v)
     end    
+  elseif command == "basedir" then
+    local _, _, dir = string.find(line, "^[a-z]+%s+(.+)$")
+    if dir then
+      if not string.find(dir, "/$") then dir = dir .. "/" end
+      basedir = dir
+      print("New base directory is " .. basedir)
+    else
+      print(basedir)
+    end
   elseif command == "help" then
     print("setb <file> <line>    -- sets a breakpoint")
     print("delb <file> <line>    -- removes a breakpoint")
@@ -192,9 +185,14 @@ while true do
     print("over                  -- run until next line, stepping over function calls")
     print("listb                 -- lists breakpoints")
     print("listw                 -- lists watch expressions")
-    print("eval <exp>            -- evaluates expression on the current context")
+    print("eval <exp>            -- evaluates expression on the current context and returns its value")
+    print("exec <stmt>           -- eexecutes statement on the current context")
+    print("basedir [<path>]      -- sets the base path of the remote application, or shows the current one")
     print("exit                  -- exits debugger")
   else
-    print("Invalid command")
+    local _, _, spaces = string.find(line, "^(%s*)$")
+    if not spaces then
+      print("Invalid command")
+    end
   end
 end
