@@ -1,5 +1,5 @@
 --
--- RemDebug 1.0 Alpha 2
+-- RemDebug 1.0 Beta
 -- Copyright Kepler Project 2005 (http://www.keplerproject.org/remdebug)
 --
 
@@ -46,7 +46,7 @@ while true do
     end
     local _, _, file, line = string.find(breakpoint, "^202 Paused%s+([%w%p]+)%s+(%d+)$")
     if file and line then
-      print("Paused reached at file " .. file .. " line " .. line)
+      print("Paused at file " .. file .. " line " .. line)
     else
       local _, _, size = string.find(breakpoint, "^401 Error in Execution (%d+)$")
       if size then
