@@ -121,9 +121,10 @@ local function debug_hook(event, line)
     end
     file = merge_paths(lfs.currentdir(), file)
     local vars = capture_vars()
-    table.foreachi(watches, function (index, value)
+    table.foreach(watches, function (index, value)
       setfenv(value, vars)
-      if value() then
+      local status, res = pcall(value)
+      if status and res then
         coroutine.resume(coro_debugger, events.BREAK, file, line, vars)
       end
     end)
@@ -186,15 +187,16 @@ local function debugger_loop(server)
         local newidx = table.getn(watches) + 1
         watches[newidx] = func
         table.setn(watches, newidx)
-        server:send("200 OK" .. newidx .. "\n") 
+        server:send("200 OK " .. newidx .. "\n") 
       else
         server:send("400 Bad Request\n")
       end
     elseif command == "DELW" then
       local _, _, index = string.find(line, "^[A-Z]+%s+(%d+)$")
+      index = tonumber(index)
       if index then
         watches[index] = nil
-        server:send("200 OK") 
+        server:send("200 OK\n") 
       else
         server:send("400 Bad Request\n")
       end

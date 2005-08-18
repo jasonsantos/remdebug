@@ -63,8 +63,9 @@ while true do
   elseif command == "setb" then
     local _, _, _, filename, line = string.find(line, "^([a-z]+)%s+([%w%p]+)%s+(%d+)$")
     if filename and line then
+      filename = basedir .. filename
       if not breakpoints[filename] then breakpoints[filename] = {} end
-      client:send("SETB " .. basedir .. filename .. " " .. line .. "\n")
+      client:send("SETB " .. filename .. " " .. line .. "\n")
       if client:receive() == "200 OK" then 
         breakpoints[filename][line] = true
       else
@@ -90,8 +91,10 @@ while true do
     end
   elseif command == "delb" then
     local _, _, _, filename, line = string.find(line, "^([a-z]+)%s+([%w%p]+)%s+(%d+)$")
-    if filename and line and breakpoints[filename] then
-      client:send("DELB " .. basedir .. filename .. " " .. line .. "\n")
+    if filename and line then
+      filename = basedir .. filename
+      if not breakpoints[filename] then breakpoints[filename] = {} end
+      client:send("DELB " .. filename .. " " .. line .. "\n")
       if client:receive() == "200 OK" then 
         breakpoints[filename][line] = nil
       else
@@ -99,6 +102,17 @@ while true do
       end
     else
       print("Invalid command")
+    end
+  elseif command == "delallb" then
+    for filename, breaks in pairs(breakpoints) do
+      for line, _ in pairs(breaks) do
+        client:send("DELB " .. filename .. " " .. line .. "\n")
+        if client:receive() == "200 OK" then 
+          breakpoints[filename][line] = nil
+        else
+          print("Error: breakpoint at file " .. filename .. " line " .. line .. " not removed")
+        end
+      end
     end
   elseif command == "delw" then
     local _, _, index = string.find(line, "^[a-z]+%s+(%d+)$")
@@ -112,6 +126,15 @@ while true do
     else
       print("Invalid command")
     end
+  elseif command == "delallw" then
+    for index, exp in pairs(watches) do
+      client:send("DELW " .. index .. "\n")
+      if client:receive() == "200 OK" then 
+      watches[index] = nil
+      else
+        print("Error: watch expression at index " .. index .. " [" .. exp .. "] not removed")
+      end
+    end    
   elseif command == "eval" then
     local _, _, exp = string.find(line, "^[a-z]+%s+(.+)$")
     if exp then 
@@ -158,7 +181,7 @@ while true do
     for k, v in pairs(breakpoints) do
       io.write(k .. ": ")
       for k, v in pairs(v) do
-        io.wite(k .. " ")
+        io.write(k .. " ")
       end
       io.write("\n")
     end
@@ -178,8 +201,10 @@ while true do
   elseif command == "help" then
     print("setb <file> <line>    -- sets a breakpoint")
     print("delb <file> <line>    -- removes a breakpoint")
+    print("delallb               -- removes all breakpoints")
     print("setw <exp>            -- adds a new watch expression")
     print("delw <index>          -- removes the watch expression at index")
+    print("delallw               -- removes all watch expressions")
     print("run                   -- run until next breakpoint")
     print("step                  -- run until next line, stepping into function calls")
     print("over                  -- run until next line, stepping over function calls")
