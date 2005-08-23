@@ -44,16 +44,25 @@ while true do
       print("Program finished")
       os.exit()
     end
-    local _, _, file, line = string.find(breakpoint, "^202 Paused%s+([%w%p]+)%s+(%d+)$")
-    if file and line then
-      print("Paused at file " .. file .. " line " .. line)
-    else
+    local _, _, status = string.find(breakpoint, "^(%d+)")
+    if status == "202" then
+      local _, _, file, line = string.find(breakpoint, "^202 Paused%s+([%w%p]+)%s+(%d+)$")
+      if file and line then 
+        print("Paused at file " .. file .. " line " .. line)
+      end
+    elseif status == "203" then
+      local _, _, file, line, watch_idx = string.find(breakpoint, "^203 Paused%s+([%w%p]+)%s+(%d+)%s+(%d+)$")
+      if file and line and watch_idx then
+        print("Paused at file " .. file .. " line " .. line .. " (watch expression " .. watch_idx .. ": [" .. watches[watch_idx] .. "])")
+      end
+    elseif status == "401" then 
       local _, _, size = string.find(breakpoint, "^401 Error in Execution (%d+)$")
       if size then
         print("Error in remote application: ")
         print(client:receive(tonumber(size)))
         os.exit()
       end
+    else
       print("Unknown error")
       os.exit()
     end

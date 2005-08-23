@@ -14,7 +14,7 @@ local lfs = require"lfs"
 local debug = debug
 
 local coro_debugger
-local events = { BREAK = 1 }
+local events = { BREAK = 1, WATCH = 2 }
 local breakpoints = {}
 local watches = {}
 local step_into = false
@@ -125,13 +125,13 @@ local function debug_hook(event, line)
       setfenv(value, vars)
       local status, res = pcall(value)
       if status and res then
-        coroutine.resume(coro_debugger, events.BREAK, file, line, vars)
+        coroutine.resume(coro_debugger, events.WATCH, vars, file, line, index)
       end
     end)
     if step_into or (step_over and stack_level <= step_level) or has_breakpoint(file, line) then
       step_into = false
       step_over = false
-      coroutine.resume(coro_debugger, events.BREAK, file, line, vars)
+      coroutine.resume(coro_debugger, events.BREAK, vars, file, line)
       restore_vars(vars)
     end
   end
@@ -202,10 +202,12 @@ local function debugger_loop(server)
       end
     elseif command == "RUN" then
       server:send("200 OK\n")
-      local ev, file, line, vars = coroutine.yield()
+      local ev, vars, file, line, idx_watch = coroutine.yield()
       eval_env = vars
       if ev == events.BREAK then
         server:send("202 Paused " .. file .. " " .. line .. "\n")
+      elseif ev == events.WATCH then
+        server:send("203 Paused " .. file .. " " .. line .. " " .. idx_watch .. "\n")
       else
         server:send("401 Error in Execution " .. string.len(file) .. "\n")
         server:send(file)
@@ -213,10 +215,12 @@ local function debugger_loop(server)
     elseif command == "STEP" then
       server:send("200 OK\n")
       step_into = true
-      local ev, file, line, vars = coroutine.yield()
+      local ev, vars, file, line, idx_watch = coroutine.yield()
       eval_env = vars
       if ev == events.BREAK then
         server:send("202 Paused " .. file .. " " .. line .. "\n")
+      elseif ev == events.WATCH then
+        server:send("203 Paused " .. file .. " " .. line .. " " .. idx_watch .. "\n")
       else
         server:send("401 Error in Execution " .. string.len(file) .. "\n")
         server:send(file)
@@ -225,10 +229,12 @@ local function debugger_loop(server)
       server:send("200 OK\n")
       step_over = true
       step_level = stack_level
-      local ev, file, line, vars = coroutine.yield()
+      local ev, vars, file, line, idx_watch = coroutine.yield()
       eval_env = vars
       if ev == events.BREAK then
         server:send("202 Paused " .. file .. " " .. line .. "\n")
+      elseif ev == events.WATCH then
+        server:send("203 Paused " .. file .. " " .. line .. " " .. idx_watch .. "\n")
       else
         server:send("401 Error in Execution " .. string.len(file) .. "\n")
         server:send(file)
