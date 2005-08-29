@@ -7,7 +7,7 @@ module("remdebug.engine")
 
 _COPYRIGHT = "2005 - Kepler Project"
 _DESCRIPTION = "Remote Debugger for the Lua programming language"
-_VERSION = "1.0 Alpha"
+_VERSION = "1.0 Beta"
 
 local socket = require"socket"
 local lfs = require"lfs"
