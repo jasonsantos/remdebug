@@ -31,6 +31,7 @@
 				<li> <a href="index.html#over">Overview</a></li>
 				<li> <a href="index.html#status">Status</a></li>
 				<li> <a href="index.html#download">Download</a></li>
+				<li> <a href="index.html#dependencies">Dependencies</a></li>
 				<li> <a href="index.html#history">History</a></li>
 				<li> <a href="index.html#credits">Credits</a></li>
 				<li> <a href="index.html#contact">Contact</a></li>
@@ -45,6 +46,12 @@
 			</ul>
 		</li>
         <li><a href="example.html">Example</a></li>
+    <li><a href="http://luaforge.net/projects/remdebug/">Project</a>
+        <ul>
+            <li><a href="http://luaforge.net/tracker/?group_id=11">Bug Tracker</a></li>
+            <li><a href="http://luaforge.net/scm/?group_id=11">CVS</a></li>
+        </ul>
+    </li>
 		<li><a href="license.html">License</a></li>
 	</ul>
 </div>
@@ -53,7 +60,7 @@
 
 <h2><a name="over"></a>Overview</h2>
 
-<p>RemDebug is a remote debugger for <a href="http://www.lua.org">Lua 5.0/5.1</a>. It lets you control
+<p>RemDebug is a remote debugger for <a href="http://www.lua.org">Lua 5.0 and 5.1</a>. It lets you control
 the execution of another Lua program remotely, setting breakpoints
 and inspecting the current state of the program. RemDebug can also debug <a href="http://luaforge.net/projects/cgilua">CGILua</a> scripts.</p>
 
@@ -76,13 +83,20 @@ for more details).</p>
 <p>RemDebug can be downloaded from the 
 <a href="http://luaforge.net/projects/remdebug/files/">LuaForge page</a>.</p>
 
+<h2><a name="dependencies"></a>Dependencies</h2>
+
+<p>RemDebug depends on <a href="http://www.cs.princeton.edu/~diego/professional/luasocket">LuaSocket 2.0</a>, 
+ <a href="http://www.keplerproject.org/luafilesystem">LuaFileSystem 1.2</a>, and
+<a href="http://www.keplerproject.org/compat">Compat-5.1 Release 5</a> (if you are
+using Lua 5.0).
+
 <h2><a name="history"></a>History</h2>
 
 <dl>
     <dt><strong>1.0</strong> [28/Jul/2006]</dt>
     <dd>
     <ul>
-        <li>Works with Lua 5.0 with compat-5.1r5 and Lua 5.1</li>
+        <li>Works with Lua 5.0 (with compat-5.1 R5) and Lua 5.1</li>
     </ul>
     </dd>
     <dt><strong>1.0 Beta</strong> [29/Ago/2005]</dt>
@@ -121,12 +135,15 @@ and was implemented by Fabio Mascarenhas.</p>
 <a href="mailto:info-NO-SPAM-THANKS@keplerproject.org">contact</a> us.
 Comments are welcome!</p>
 
+<p>You can also reach other Kepler developers and users on the Kepler
+Project <a href="http://luaforge.net/mail/?group_id=104">mailing list</a>.</p>
+
 </div> <!-- id="content" -->
 </div> <!-- id="main" -->
 
 <div id="about">
 	<p><a href="http://validator.w3.org/check?uri=referer"><img src="http://www.w3.org/Icons/valid-xhtml10" alt="Valid XHTML 1.0!" height="31" width="88" /></a></p>
-	<p><small>	$Id: index.html,v 1.12 2006-07-27 18:53:02 mascarenhas Exp $</small></p>
+	<p><small>	$Id: index.html,v 1.13 2006-07-27 19:56:30 mascarenhas Exp $</small></p>
 </div> <!-- id="about" -->
 </div> <!-- id="container" -->
 </body>
