@@ -3,15 +3,15 @@
 -- Copyright Kepler Project 2005 (http://www.keplerproject.org/remdebug)
 --
 
-module("remdebug.engine")
+local socket = require"socket"
+local lfs = require"lfs"
+local debug = require"debug"
+
+module("remdebug.engine", package.seeall)
 
 _COPYRIGHT = "2005 - Kepler Project"
 _DESCRIPTION = "Remote Debugger for the Lua programming language"
 _VERSION = "1.0 Beta"
-
-local socket = require"socket"
-local lfs = require"lfs"
-local debug = debug
 
 local coro_debugger
 local events = { BREAK = 1, WATCH = 2 }

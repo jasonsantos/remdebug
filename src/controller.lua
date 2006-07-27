@@ -220,7 +220,7 @@ while true do
     print("listb                 -- lists breakpoints")
     print("listw                 -- lists watch expressions")
     print("eval <exp>            -- evaluates expression on the current context and returns its value")
-    print("exec <stmt>           -- eexecutes statement on the current context")
+    print("exec <stmt>           -- executes statement on the current context")
     print("basedir [<path>]      -- sets the base path of the remote application, or shows the current one")
     print("exit                  -- exits debugger")
   else
