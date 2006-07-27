@@ -9,9 +9,9 @@ local debug = require"debug"
 
 module("remdebug.engine", package.seeall)
 
-_COPYRIGHT = "2005 - Kepler Project"
+_COPYRIGHT = "2006 - Kepler Project"
 _DESCRIPTION = "Remote Debugger for the Lua programming language"
-_VERSION = "1.0 Beta"
+_VERSION = "1.0"
 
 local coro_debugger
 local events = { BREAK = 1, WATCH = 2 }
