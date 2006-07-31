@@ -126,6 +126,7 @@ local function debug_hook(event, line)
       local status, res = pcall(value)
       if status and res then
         coroutine.resume(coro_debugger, events.WATCH, vars, file, line, index)
+	restore_vars(vars)
       end
     end)
     if step_into or (step_over and stack_level <= step_level) or has_breakpoint(file, line) then
