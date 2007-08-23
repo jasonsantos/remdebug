@@ -1,0 +1,10 @@
+# $Id: Makefile.win,v 1.1 2007-08-23 18:54:50 carregal Exp $
+
+LUA_DIR= c:\lua5.1\lua
+REMDEBUG_DIR= $(LUA_DIR)\remdebug
+REMDEBUG_LUAS= src\remdebug\engine.lua
+
+install:
+	IF NOT EXIST $(LUA_DIR) mkdir $(LUA_DIR)
+	IF NOT EXIST $(REMDEBUG_DIR) mkdir $(REMDEBUG_DIR)
+	FOR %F IN ($(REMDEBUG_LUAS)) DO copy %F $(REMDEBUG_DIR)
