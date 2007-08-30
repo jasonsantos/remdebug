@@ -1,6 +1,6 @@
 --
--- RemDebug 1.0 Beta
--- Copyright Kepler Project 2005 (http://www.keplerproject.org/remdebug)
+-- RemDebug 1.0
+-- Copyright Kepler Project 2005-2007 (http://www.keplerproject.org/remdebug)
 --
 
 local socket = require"socket"
@@ -74,7 +74,7 @@ while true do
     if filename and line then
       filename = basedir .. filename
       if not breakpoints[filename] then breakpoints[filename] = {} end
-      client:send("SETB " .. filename .. " " .. line .. "\n")
+      client:send("SETB " .. string.gsub(filename, " ", "%%20") .. " " .. line .. "\n")
       if client:receive() == "200 OK" then 
         breakpoints[filename][line] = true
       else
@@ -201,6 +201,7 @@ while true do
   elseif command == "basedir" then
     local _, _, dir = string.find(line, "^[a-z]+%s+(.+)$")
     if dir then
+      dir = string.gsub(dir, "\\", "/")
       if not string.find(dir, "/$") then dir = dir .. "/" end
       basedir = dir
       print("New base directory is " .. basedir)

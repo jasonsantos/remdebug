@@ -148,6 +148,7 @@ local function debugger_loop(server)
     if command == "SETB" then
       local _, _, _, filename, line = string.find(line, "^([A-Z]+)%s+([%w%p]+)%s+(%d+)$")
       if filename and line then
+        filename = string.gsub(filename, "%%20", " ")
         set_breakpoint(filename, tonumber(line))
         server:send("200 OK\n")
       else
