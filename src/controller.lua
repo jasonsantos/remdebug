@@ -2,6 +2,7 @@
 -- RemDebug 1.0
 -- Copyright Kepler Project 2005-2007 (http://www.keplerproject.org/remdebug)
 --
+pcall(require, "luarocks.require")
 
 local socket = require"socket"
 
@@ -15,9 +16,10 @@ local breakpoints = {}
 local watches = {}
 
 client:send("STEP\n")
-client:receive()
+print(client:receive())
 
 local breakpoint = client:receive()
+print(breakpoint)
 local _, _, file, line = string.find(breakpoint, "^202 Paused%s+([%w%p]+)%s+(%d+)$")
 if file and line then
   print("Paused at file " .. file )

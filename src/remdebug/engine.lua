@@ -2,6 +2,7 @@
 -- RemDebug 1.0 Beta
 -- Copyright Kepler Project 2005 (http://www.keplerproject.org/remdebug)
 --
+pcall(require, "luarocks.require")
 
 local socket = require"socket"
 local lfs = require"lfs"
@@ -125,6 +126,8 @@ local function debug_hook(event, line)
       setfenv(value, vars)
       local status, res = pcall(value)
       if status and res then
+      print'debugging..'
+      print(status, res)
         coroutine.resume(coro_debugger, events.WATCH, vars, file, line, index)
 	restore_vars(vars)
       end
@@ -138,113 +141,193 @@ local function debug_hook(event, line)
   end
 end
 
-local function debugger_loop(server)
-  local command
-  local eval_env = {}
-  
-  while true do
-    local line, status = server:receive()
-    command = string.sub(line, string.find(line, "^[A-Z]+"))
-    if command == "SETB" then
-      local _, _, _, filename, line = string.find(line, "^([A-Z]+)%s+([%w%p]+)%s+(%d+)$")
-      if filename and line then
-        filename = string.gsub(filename, "%%20", " ")
-        set_breakpoint(filename, tonumber(line))
-        server:send("200 OK\n")
-      else
-        server:send("400 Bad Request\n")
-      end
-    elseif command == "DELB" then
-      local _, _, _, filename, line = string.find(line, "^([A-Z]+)%s+([%w%p]+)%s+(%d+)$")
-      if filename and line then
-        remove_breakpoint(filename, tonumber(line))
-        server:send("200 OK\n")
-      else
-        server:send("400 Bad Request\n")
-      end
-    elseif command == "EXEC" then
-      local _, _, chunk = string.find(line, "^[A-Z]+%s+(.+)$")
-      if chunk then 
+local operation = {}
+
+local SUCCESS = "200 OK\n"
+local BAD_REQUEST = "400 Bad Request\n"
+local EXPRESSION_ERROR_ = "401 Error in Expression "
+local BREAK_PAUSE_ = "202 Paused "
+local WATCH_PAUSE_ = "203 Paused "
+local EXECUTION_ERROR_ = "401 Error in Execution "
+
+
+--- implements SETB command
+function operation.setBreakpoint(status, filename, lineNumber )
+	if filename and lineNumber then
+		filename = string.gsub(filename, "%%20", " ")
+	    set_breakpoint(filename, tonumber(lineNumber))
+	    
+	    return SUCCESS 
+	else
+	    return BAD_REQUEST
+	end
+end
+
+--- implements DELB command
+function operation.removeBreakpoint(status, filename, lineNumber )
+	if filename and lineNumber then
+		filename = string.gsub(filename, "%%20", " ")
+	    remove_breakpoint(filename, tonumber(lineNumber))
+	    
+	    return SUCCESS 
+	else
+	    return BAD_REQUEST
+	end
+end
+
+function operation.execute(status, chunk)
+	if chunk then 
         local func = loadstring(chunk)
         local status, res
         if func then
-          setfenv(func, eval_env)
-          status, res = xpcall(func, debug.traceback)
+        	setfenv(func, eval_env)
+        	status, res = xpcall(func, debug.traceback)
         end
         res = tostring(res)
         if status then
-          server:send("200 OK " .. string.len(res) .. "\n") 
-          server:send(res)
+        	local s = SUCCESS .. " " .. string.len(res) .. "\n" 
+        	return s .. res
         else
-          server:send("401 Error in Expression " .. string.len(res) .. "\n")
-          server:send(res)
+        	local s = EXPRESSION_ERROR_ .. string.len(res) .. "\n"
+        	return s .. res
         end
-      else
-        server:send("400 Bad Request\n")
-      end
-    elseif command == "SETW" then
-      local _, _, exp = string.find(line, "^[A-Z]+%s+(.+)$")
-      if exp then 
-        local func = loadstring("return(" .. exp .. ")")
-        local newidx = table.getn(watches) + 1
-        watches[newidx] = func
-        table.setn(watches, newidx)
-        server:send("200 OK " .. newidx .. "\n") 
-      else
-        server:send("400 Bad Request\n")
-      end
-    elseif command == "DELW" then
-      local _, _, index = string.find(line, "^[A-Z]+%s+(%d+)$")
-      index = tonumber(index)
-      if index then
-        watches[index] = nil
-        server:send("200 OK\n") 
-      else
-        server:send("400 Bad Request\n")
-      end
-    elseif command == "RUN" then
-      server:send("200 OK\n")
-      local ev, vars, file, line, idx_watch = coroutine.yield()
-      eval_env = vars
-      if ev == events.BREAK then
-        server:send("202 Paused " .. file .. " " .. line .. "\n")
-      elseif ev == events.WATCH then
-        server:send("203 Paused " .. file .. " " .. line .. " " .. idx_watch .. "\n")
-      else
-        server:send("401 Error in Execution " .. string.len(file) .. "\n")
-        server:send(file)
-      end
-    elseif command == "STEP" then
-      server:send("200 OK\n")
-      step_into = true
-      local ev, vars, file, line, idx_watch = coroutine.yield()
-      eval_env = vars
-      if ev == events.BREAK then
-        server:send("202 Paused " .. file .. " " .. line .. "\n")
-      elseif ev == events.WATCH then
-        server:send("203 Paused " .. file .. " " .. line .. " " .. idx_watch .. "\n")
-      else
-        server:send("401 Error in Execution " .. string.len(file) .. "\n")
-        server:send(file)
-      end
-    elseif command == "OVER" then
-      server:send("200 OK\n")
-      step_over = true
-      step_level = stack_level
-      local ev, vars, file, line, idx_watch = coroutine.yield()
-      eval_env = vars
-      if ev == events.BREAK then
-        server:send("202 Paused " .. file .. " " .. line .. "\n")
-      elseif ev == events.WATCH then
-        server:send("203 Paused " .. file .. " " .. line .. " " .. idx_watch .. "\n")
-      else
-        server:send("401 Error in Execution " .. string.len(file) .. "\n")
-        server:send(file)
-      end
-    else
-      server:send("400 Bad Request\n")
-    end
-  end
+	else
+    	return BAD_REQUEST
+	end
+end
+
+function operation.setWatch(status, exp)
+	if exp then 
+		local func = loadstring("return(" .. exp .. ")")
+		local newidx = table.getn(watches) + 1
+		watches[newidx] = func
+		table.setn(watches, newidx)
+		return SUCCESS .. " " .. newidx .. "\n" 
+	else
+		return BAD_REQUEST
+	end  
+end
+
+function operation.deleteWatch(status, index)
+	index = tonumber(index)
+	if index then
+		watches[index] = nil
+		return SUCCESS 
+	else
+		return BAD_REQUEST
+	end
+end
+
+function operation.run()
+print'run success'
+	server:send(SUCCESS)
+    local ev, vars, file, line, idx_watch = coroutine.yield()
+    eval_env = vars
+    if ev == events.BREAK then
+    	return BREAK_PAUSE_ .. file .. " " .. line .. "\n"
+	elseif ev == events.WATCH then
+    	return WATCH_PAUSE_ .. file .. " " .. line .. " " .. idx_watch .. "\n"
+	else
+    	return EXECUTION_ERROR_ .. string.len(file) .. "\n" .. file
+	end
+end
+
+function operation.step()
+print'step success' print(SUCCESS)
+	server:send(SUCCESS)
+print'step success sent'
+	step_into = true
+	
+	local ev, vars, file, line, idx_watch = coroutine.yield()
+	
+	eval_env = vars
+	
+	if ev == events.BREAK then
+        return BREAK_PAUSE_ .. file .. " " .. line .. "\n"
+	elseif ev == events.WATCH then
+        return WATCH_PAUSE_ .. file .. " " .. line .. " " .. idx_watch .. "\n"
+	else
+        return EXECUTION_ERROR_ .. string.len(file) .. "\n" .. file
+	end
+end
+
+function operation.stepOver()
+print'stepover success'
+	server:send(SUCCESS)
+	
+	step_over = true
+	step_level = stack_level
+	local ev, vars, file, line, idx_watch = coroutine.yield()
+	
+	eval_env = vars
+	
+	if ev == events.BREAK then
+        return BREAK_PAUSE_ .. file .. " " .. line .. "\n"
+	elseif ev == events.WATCH then
+        return WATCH_PAUSE_ .. file .. " " .. line .. " " .. idx_watch .. "\n"
+	else
+        return EXECUTION_ERROR_ .. string.len(file) .. "\n"  .. file
+	end
+end
+
+local function debugger_loop(server)
+	local command
+	local eval_env = {}
+  
+	-- command x operations table.. allows alternate syntaxes to commands
+	local operations = {
+	  	SETB={
+	  		operation = operation['setBreakpoint'],
+	  		paramsMask = '([%w%p]+)%s+(%d+)$'
+	  	},
+	  	DELB={
+	  		operation = operation['removeBreakpoint'], 
+	  		paramsMask = '([%w%p]+)%s+(%d+)$'
+	  	},
+	  	EXEC={
+	  		operation = operation['execute'], 
+	  		paramsMask = '.*'
+	  	},
+	  	SETW={
+	  		operation = operation['setWatch'], 
+	  		paramsMask = '.*'
+	  	},
+	  	DELW={
+	  		operation = operation['deleteWatch'], 
+	  		paramsMask = '(%d+)'
+	  	},
+	  	RUN ={
+	  		operation = operation['run'], 
+	  		paramsMask = '.*'
+	  	},
+	  	STEP={
+	  		operation = operation['step'], 
+	  		paramsMask = '.*'
+	  	},
+	  	OVER={
+	  		operation = operation['stepOver'], 
+	  		paramsMask = '.*'
+	  	},
+	}
+  
+	while true do
+		print"I'm about to receive from server"
+	    local line, status = server:receive()
+	print(line)
+	    local result  = BAD_REQUEST
+	    string.gsub(line, "^([A-Z]+)(.*)", function(command, params)
+	    	print('c',command, params)
+		    local operation = operations[command] and operations[command].operation
+		    print(command, operation)
+		    if operation then
+		    	print('about to run', params,  operations[command].paramsMask)
+		    	result = string.gsub(params, operations[command].paramsMask, operation)
+		    	print('r',result)
+		    end    	
+	    end)
+	    print('R',result)
+    	server:send(result)
+	end  
 end
 
 coro_debugger = coroutine.create(debugger_loop)
@@ -268,16 +351,19 @@ end
 --
 function start()
   pcall(require, "remdebug.config")
+  
+ print(controller_host, controller_port)
   local server = socket.connect(controller_host, controller_port)
   if server then
     _TRACEBACK = function (message) 
       local err = debug.traceback(message)
-      server:send("401 Error in Execution " .. string.len(err) .. "\n")
+      server:send(EXECUTION_ERROR_ .. string.len(err) .. "\n")
       server:send(err)
       server:close()
       return err
     end
     debug.sethook(debug_hook, "lcr")
+    print'waiting..'
     return coroutine.resume(coro_debugger, server)
   end
 end
